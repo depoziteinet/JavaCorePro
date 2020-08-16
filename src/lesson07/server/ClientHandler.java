@@ -12,6 +12,7 @@ public class ClientHandler {
     private DataOutputStream out;
 
     private String name;
+    private int timeout;
 
     public String getName() {
         return name;
@@ -24,11 +25,21 @@ public class ClientHandler {
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
             this.name = "";
+            this.timeout = 10;
             new Thread(() -> {
                 try {
-                    authentication();
-                    readMessages();
-                } catch (IOException e) {
+                    threadAuthentication authentication = new threadAuthentication();
+                    authentication.start();
+                    for (int i = 0; i < timeout; i++) {
+                        Thread.sleep(1000);
+                        if(authentication.getState().toString() == "TERMINATED")
+                            break;
+                    }
+                    if(authentication.getState().toString() != "TERMINATED")
+                        closeConnection();
+                    else
+                        readMessages();
+                } catch (IOException | InterruptedException e) {
                     e.printStackTrace();
                 } finally {
                     closeConnection();
@@ -36,6 +47,17 @@ public class ClientHandler {
             }).start();
         } catch (IOException e) {
             throw new RuntimeException("Проблемы при создании обработчика клиента");
+        }
+    }
+
+    public class threadAuthentication extends Thread{
+        @Override
+        public void run() {
+            try {
+                authentication();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
